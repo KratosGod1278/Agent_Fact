@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════
+// EMPRESA / PROVEEDOR
+// ═══════════════════════════════════════
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  rnc         String?
+  address     String?
+  phone       String?
+  email       String?
+  contactName String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoices  Invoice[]
+  payments  Payment[]
+  reminders Reminder[]
+
+  @@map("companies")
+}
+
+// ═══════════════════════════════════════
+// FACTURA
+// ═══════════════════════════════════════
+model Invoice {
+  id          String   @id @default(uuid())
+  companyId   String
+  number      String
+  ncf         String?
+  type        String   @default("CREDITO_FISCAL")
+  issueDate   DateTime
+  dueDate     DateTime?
+  subtotal    Float    @default(0)
+  itbis       Float    @default(0)
+  discount    Float    @default(0)
+  total       Float    @default(0)
+  currency    String   @default("DOP")
+  status      String   @default("PENDIENTE") // PENDIENTE, PARCIAL, PAGADA, VENCIDA
+  priority    String   @default("NORMAL")    // BAJA, NORMAL, ALTA, URGENTE
+  notes       String?
+  imageUrl    String?
+  ocrRawData  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items       InvoiceItem[]
+  payments    Payment[]
+  reminders   Reminder[]
+
+  @@unique([companyId, number])
+  @@map("invoices")
+}
+
+// ═══════════════════════════════════════
+// DETALLE DE FACTURA (productos/servicios)
+// ═══════════════════════════════════════
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  description String
+  quantity    Float   @default(1)
+  unitPrice   Float   @default(0)
+  subtotal    Float   @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_items")
+}
+
+// ═══════════════════════════════════════
+// PAGO
+// ═══════════════════════════════════════
+model Payment {
+  id            String   @id @default(uuid())
+  invoiceId     String
+  companyId     String
+  amount        Float
+  method        String   @default("EFECTIVO") // EFECTIVO, TRANSFERENCIA, TARJETA, CHEQUE, DEPOSITO
+  bank          String?
+  reference     String?
+  proofImageUrl String?
+  paidAt        DateTime @default(now())
+  registeredBy  String   @default("Usuario")
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  invoice  Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  receipt  Receipt?
+
+  @@map("payments")
+}
+
+// ═══════════════════════════════════════
+// COMPROBANTE
+// ═══════════════════════════════════════
+model Receipt {
+  id          String   @id @default(uuid())
+  paymentId   String   @unique
+  content     String
+  generatedAt DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("receipts")
+}
+
+// ═══════════════════════════════════════
+// RECORDATORIO
+// ═══════════════════════════════════════
+model Reminder {
+  id        String   @id @default(uuid())
+  invoiceId String
+  companyId String
+  remindAt  DateTime
+  channel   String   @default("INTERNAL") // INTERNAL, EMAIL, WHATSAPP, SMS
+  message   String?
+  status    String   @default("PENDIENTE") // PENDIENTE, ENVIADO, CANCELADO
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("reminders")
+}
+
+// ═══════════════════════════════════════
+// NOTIFICACIÓN
+// ═══════════════════════════════════════
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // INFO, WARNING, ERROR, SUCCESS
+  title     String
+  message   String
+  channel   String   @default("INTERNAL")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+// ═══════════════════════════════════════
+// LOG DE ERRORES
+// ═══════════════════════════════════════
+model ErrorLog {
+  id          String   @id @default(uuid())
+  entityType  String   // INVOICE, PAYMENT, COMPANY, REMINDER
+  entityId    String?
+  type        String   // DATA_MISSING, AMOUNT_MISMATCH, DUPLICATE, etc.
+  description String
+  severity    String   @default("WARNING") // INFO, WARNING, ERROR, CRITICAL
+  resolved    Boolean  @default(false)
+  solution    String?
+  createdAt   DateTime @default(now())
+
+  @@map("error_logs")
+}
+
+// ═══════════════════════════════════════
+// MEMORIA IA
+// ═══════════════════════════════════════
+model Memory {
+  id         String   @id @default(uuid())
+  entityType String   // COMPANY, INVOICE, PATTERN
+  entityId   String?
+  type       String   // PREFERENCE, BEHAVIOR, PATTERN, INSIGHT
+  content    String
+  confidence Float    @default(0.8)
+  createdAt  DateTime @default(now())
+
+  @@map("ai_memory")
+}
