@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { formatCurrency } from '@/lib/utils'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 
+export const dynamic = 'force-dynamic'
+
 async function getDashboardData() {
   const totalCompanies = await prisma.company.count()
   
