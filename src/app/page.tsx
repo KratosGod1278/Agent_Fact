@@ -40,10 +40,18 @@ export default function DashboardPage() {
     fetch('/api/dashboard')
       .then(res => res.json())
       .then(d => {
+        if (d.error) {
+          console.error('API error:', d.error)
+          setLoading(false)
+          return
+        }
         setData(d)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(err => {
+        console.error('Fetch error:', err)
+        setLoading(false)
+      })
   }, [])
 
   if (loading) {
@@ -57,7 +65,12 @@ export default function DashboardPage() {
   if (!data) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-red-500">Error al cargar datos</div>
+        <div className="text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+          <div className="text-red-500 text-lg font-medium">Error al cargar datos del dashboard</div>
+          <p className="text-sm text-gray-500 mt-2">Verifica que la base de datos esté configurada correctamente en Railway</p>
+          <p className="text-xs text-gray-400 mt-1">Variable requerida: DATABASE_URL</p>
+        </div>
       </div>
     )
   }
