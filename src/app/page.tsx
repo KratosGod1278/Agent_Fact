@@ -1,77 +1,66 @@
-import { prisma } from '@/lib/prisma'
+'use client'
+
+import { useEffect, useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
-import { StatusBadge } from '@/components/shared/StatusBadge'
 
-export const dynamic = 'force-dynamic'
-
-async function getDashboardData() {
-  const totalCompanies = await prisma.company.count()
-  
-  const invoices = await prisma.invoice.findMany({
-    include: {
-      payments: true,
-      company: true,
-    },
-  })
-
-  const totalFacturado = invoices.reduce((sum, inv) => sum + inv.total, 0)
-  const totalPagado = invoices.reduce((sum, inv) => {
-    const pagado = inv.payments.reduce((pSum, p) => pSum + p.amount, 0)
-    return sum + pagado
-  }, 0)
-  const totalPendiente = totalFacturado - totalPagado
-
-  const pendientes = invoices.filter(i => i.status === 'PENDIENTE').length
-  const parciales = invoices.filter(i => i.status === 'PARCIAL').length
-  const pagadas = invoices.filter(i => i.status === 'PAGADA').length
-  const vencidas = invoices.filter(i => i.status === 'VENCIDA').length
-
-  const empresasConDeuda = await prisma.company.findMany({
-    include: {
-      invoices: {
-        include: { payments: true },
-      },
-    },
-  })
-
-  const empresasAlDia = empresasConDeuda.filter(emp => {
-    const totalFact = emp.invoices.reduce((s, i) => s + i.total, 0)
-    const totalPag = emp.invoices.reduce((s, i) => s + i.payments.reduce((ps, p) => ps + p.amount, 0), 0)
-    return totalPag >= totalFact && totalFact > 0
-  }).length
-
-  const empresasConDeudaCount = totalCompanies - empresasAlDia
-
-  const upcomingDue = invoices
-    .filter(i => i.dueDate && i.status !== 'PAGADA')
-    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
-    .slice(0, 5)
-
-  const recentPayments = await prisma.payment.findMany({
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    include: { company: true, invoice: true },
-  })
-
-  return {
-    totalCompanies,
-    totalFacturado,
-    totalPagado,
-    totalPendiente,
-    pendientes,
-    parciales,
-    pagadas,
-    vencidas,
-    empresasAlDia,
-    empresasConDeuda: empresasConDeudaCount,
-    upcomingDue,
-    recentPayments,
-    totalInvoices: invoices.length,
-  }
+interface DashboardData {
+  totalCompanies: number
+  totalFacturado: number
+  totalPagado: number
+  totalPendiente: number
+  pendientes: number
+  parciales: number
+  pagadas: number
+  vencidas: number
+  empresasAlDia: number
+  empresasConDeuda: number
+  upcomingDue: Array<{
+    id: string
+    number: string
+    total: number
+    dueDate: string | null
+    company: { name: string }
+  }>
+  recentPayments: Array<{
+    id: string
+    amount: number
+    method: string
+    paidAt: string
+    company: { name: string }
+    invoice: { number: string }
+  }>
+  totalInvoices: number
 }
 
-export default async function DashboardPage() {
-  const data = await getDashboardData()
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/dashboard')
+      .then(res => res.json())
+      .then(d => {
+        setData(d)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-gray-500">Cargando dashboard...</div>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-red-500">Error al cargar datos</div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
