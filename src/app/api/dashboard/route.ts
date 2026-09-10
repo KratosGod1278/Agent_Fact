@@ -5,6 +5,11 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    const dbUrl = process.env.DATABASE_URL
+    if (!dbUrl) {
+      return NextResponse.json({ error: 'DATABASE_URL not set', dbUrl: 'MISSING' }, { status: 500 })
+    }
+
     const totalCompanies = await prisma.company.count()
 
     const invoices = await prisma.invoice.findMany({
@@ -68,7 +73,12 @@ export async function GET() {
       recentPayments,
       totalInvoices: invoices.length,
     })
-  } catch (error) {
-    return NextResponse.json({ error: 'Error fetching dashboard data' }, { status: 500 })
+  } catch (error: any) {
+    console.error('Dashboard API error:', error)
+    return NextResponse.json({ 
+      error: 'Error fetching dashboard data', 
+      details: error.message,
+      code: error.code 
+    }, { status: 500 })
   }
 }
