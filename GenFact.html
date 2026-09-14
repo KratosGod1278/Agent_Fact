@@ -381,36 +381,34 @@ function resetAll(){
 
 let reportCounter = parseInt(localStorage.getItem('bolelos_report_counter') || '10', 10);
 
-function nextCode() {
-  reportCounter++;
-  localStorage.setItem('bolelos_report_counter', reportCounter.toString());
-  const padded = String(reportCounter).padStart(3, '0');
-  document.getElementById('codigo').textContent = 'D-' + padded;
-}
-
 async function downloadPDF(){
-  const el = document.getElementById('receipt');
-  // quitar temporalmente sombra para captura limpia
-  const originalShadow = el.style.boxShadow;
-  el.style.boxShadow = 'none';
-  const canvas = await html2canvas(el, {scale:3, backgroundColor:'#fdfcf9', useCORS:true});
-  el.style.boxShadow = originalShadow;
+  try {
+    const el = document.getElementById('receipt');
+    const originalShadow = el.style.boxShadow;
+    el.style.boxShadow = 'none';
+    const canvas = await html2canvas(el, {scale:3, backgroundColor:'#fdfcf9', useCORS:true});
+    el.style.boxShadow = originalShadow;
 
-  const { jsPDF } = window.jspdf;
-  const imgData = canvas.toDataURL('image/png');
-  const widthMM = 100; // ancho tipo recibo
-  const heightMM = (canvas.height * widthMM) / canvas.width;
-  const pdf = new jsPDF({
-    orientation: heightMM > widthMM ? 'portrait' : 'landscape',
-    unit: 'mm',
-    format: [widthMM, heightMM]
-  });
-  pdf.addImage(imgData, 'PNG', 0, 0, widthMM, heightMM);
-  const codigo = document.getElementById('codigo').innerText.trim() || 'reporte';
-  pdf.save(`Bolelos-Corner-Deudas-${codigo}.pdf`);
+    const { jsPDF } = window.jspdf;
+    const imgData = canvas.toDataURL('image/png');
+    const widthMM = 100;
+    const heightMM = (canvas.height * widthMM) / canvas.width;
+    const pdf = new jsPDF({
+      orientation: heightMM > widthMM ? 'portrait' : 'landscape',
+      unit: 'mm',
+      format: [widthMM, heightMM]
+    });
+    pdf.addImage(imgData, 'PNG', 0, 0, widthMM, heightMM);
+    const codigo = document.getElementById('codigo').innerText.trim() || 'reporte';
+    pdf.save('Bolelos-Corner-Deudas-' + codigo + '.pdf');
 
-  nextCode();
-  setToday();
+    reportCounter++;
+    localStorage.setItem('bolelos_report_counter', reportCounter.toString());
+    document.getElementById('codigo').textContent = 'D-' + String(reportCounter).padStart(3, '0');
+    setToday();
+  } catch(e) {
+    alert('Error al generar PDF: ' + e.message);
+  }
 }
 
 // inicialización
